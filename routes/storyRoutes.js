@@ -3,6 +3,8 @@ const router = express.Router();
 const storyController = require('../controllers/storyController');
 const authMiddleware = require('../middleware/auth');
 
+router.get('/count', authMiddleware, storyController.getStoriesCount);
+
 router.get('/stats', storyController.getStats);
 router.get('/map', storyController.getStoriesForMap);
 

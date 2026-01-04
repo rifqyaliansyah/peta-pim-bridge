@@ -427,3 +427,27 @@ exports.getStats = async (req, res) => {
         });
     }
 };
+
+exports.getStoriesCount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const result = await pool.query(
+            'SELECT COUNT(*) as count FROM stories WHERE user_id = $1',
+            [userId]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                count: parseInt(result.rows[0].count)
+            }
+        });
+    } catch (error) {
+        console.error('Get stories count error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat mengambil jumlah cerita'
+        });
+    }
+};
