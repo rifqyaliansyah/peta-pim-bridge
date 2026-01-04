@@ -275,22 +275,28 @@ exports.deleteStory = async (req, res) => {
 
 exports.getMyStories = async (req, res) => {
     try {
-        const { page = 1, limit = 10 } = req.query;
+        // const { page = 1, limit = 10 } = req.query;
         const userId = req.user.id;
-        const offset = (page - 1) * limit;
+        // const offset = (page - 1) * limit;
 
-        const countResult = await pool.query(
-            'SELECT COUNT(*) FROM stories WHERE user_id = $1',
-            [userId]
-        );
-        const total = parseInt(countResult.rows[0].count);
+        // const countResult = await pool.query(
+        //     'SELECT COUNT(*) FROM stories WHERE user_id = $1',
+        //     [userId]
+        // );
+        // const total = parseInt(countResult.rows[0].count);
 
         const result = await pool.query(
-            `SELECT * FROM stories 
-       WHERE user_id = $1 
-       ORDER BY created_at DESC 
-       LIMIT $2 OFFSET $3`,
-            [userId, parseInt(limit), offset]
+            `SELECT 
+                s.*,
+                u.id as author_id, 
+                u.name as author_name
+            FROM stories s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.user_id = $1 
+            ORDER BY s.created_at DESC`,
+            // LIMIT $2 OFFSET $3`,
+            [userId]
+            // [userId, parseInt(limit), offset]
         );
 
         const stories = result.rows.map(row => ({
@@ -305,20 +311,20 @@ exports.getMyStories = async (req, res) => {
             created_at: row.created_at,
             updated_at: row.updated_at,
             author: {
-                id: req.user.id,
-                name: req.user.name
+                id: row.author_id,
+                name: row.author_name
             }
         }));
 
         res.json({
             success: true,
             data: stories,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                totalPages: Math.ceil(total / limit)
-            }
+            // pagination: {
+            //     page: parseInt(page),
+            //     limit: parseInt(limit),
+            //     total,
+            //     totalPages: Math.ceil(total / limit)
+            // }
         });
     } catch (error) {
         console.error('Get my stories error:', error);
