@@ -127,18 +127,39 @@ exports.login = async (req, res) => {
 };
 
 exports.getMe = async (req, res) => {
-    res.json({
-        success: true,
-        data: {
-            user: req.user
+    try {
+        const userId = req.user.id;
+
+        const result = await pool.query(
+            'SELECT id, name, email, created_at, updated_at FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'User tidak ditemukan'
+            });
         }
-    });
+
+        res.json({
+            success: true,
+            data: {
+                user: result.rows[0]
+            }
+        });
+    } catch (error) {
+        console.error('Get me error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat mengambil data user'
+        });
+    }
 };
 
-// Update Profile
 exports.updateProfile = async (req, res) => {
     try {
-        const { name } = req.body;
+        const { name, oldPassword, newPassword } = req.body;
         const userId = req.user.id;
 
         if (!name || name.trim().length === 0) {
@@ -155,14 +176,66 @@ exports.updateProfile = async (req, res) => {
             });
         }
 
+        if (oldPassword || newPassword) {
+            if (!oldPassword || !newPassword) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password lama dan password baru harus diisi'
+                });
+            }
+
+            if (newPassword.length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password baru minimal 6 karakter'
+                });
+            }
+
+            const userResult = await pool.query(
+                'SELECT password FROM users WHERE id = $1',
+                [userId]
+            );
+
+            if (userResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User tidak ditemukan'
+                });
+            }
+
+            const isPasswordValid = await bcrypt.compare(oldPassword, userResult.rows[0].password);
+
+            if (!isPasswordValid) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Password lama tidak sesuai'
+                });
+            }
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+            const result = await pool.query(
+                'UPDATE users SET name = $1, password = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, email, created_at, updated_at',
+                [name.trim(), hashedPassword, userId]
+            );
+
+            return res.json({
+                success: true,
+                message: 'Profile dan password berhasil diperbarui',
+                data: {
+                    user: result.rows[0]
+                }
+            });
+        }
+
         const result = await pool.query(
-            'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, email, updated_at',
+            'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, email, created_at, updated_at',
             [name.trim(), userId]
         );
 
         res.json({
             success: true,
-            message: 'Profile berhasil diupdate',
+            message: 'Profile berhasil diperbarui',
             data: {
                 user: result.rows[0]
             }
