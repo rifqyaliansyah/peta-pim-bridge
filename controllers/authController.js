@@ -127,12 +127,34 @@ exports.login = async (req, res) => {
 };
 
 exports.getMe = async (req, res) => {
-    res.json({
-        success: true,
-        data: {
-            user: req.user
+    try {
+        const userId = req.user.id;
+
+        const result = await pool.query(
+            'SELECT id, name, email, created_at, updated_at FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'User tidak ditemukan'
+            });
         }
-    });
+
+        res.json({
+            success: true,
+            data: {
+                user: result.rows[0]
+            }
+        });
+    } catch (error) {
+        console.error('Get me error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat mengambil data user'
+        });
+    }
 };
 
 // Update Profile
