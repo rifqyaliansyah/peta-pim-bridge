@@ -370,6 +370,43 @@ exports.getStoriesForMap = async (req, res) => {
     }
 };
 
+exports.incrementView = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const checkResult = await pool.query(
+            'SELECT id, views_count FROM stories WHERE id = $1',
+            [id]
+        );
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cerita tidak ditemukan'
+            });
+        }
+
+        const result = await pool.query(
+            'UPDATE stories SET views_count = views_count + 1 WHERE id = $1 RETURNING views_count',
+            [id]
+        );
+
+        res.json({
+            success: true,
+            message: 'View count berhasil diupdate',
+            data: {
+                views_count: result.rows[0].views_count
+            }
+        });
+    } catch (error) {
+        console.error('Increment view error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan'
+        });
+    }
+};
+
 exports.getStats = async (req, res) => {
     try {
         const storiesCount = await pool.query('SELECT COUNT(*) FROM stories');
